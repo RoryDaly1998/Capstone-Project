@@ -1,0 +1,1 @@
+character_list = ['John', 'Anna', 'Phillip', 'Rachel', 'Terrence', 'Brenda', 'Will']
