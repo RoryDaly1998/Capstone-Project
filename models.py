@@ -15,20 +15,23 @@ class Card():
 
         Card.cards_in_play.append(index)
 
-    def __repr__(self):
-        '''Converts the unique card index into a name string. Note that the ace has the highest rank and the
-        ranks of all other cards ahs been transposed by -1, this is to make evaluation of hands easier.'''
-        card_rank = str(- (self.index // - 4))
-        card_suit = ''
+        card_rank_numerical = (index % 13) + 2
+        self.rank_numerical = card_rank_numerical
 
-        if card_rank == '13':
-            card_rank = 'A'
-        elif card_rank == '12':
-            card_rank = 'K'
-        elif card_rank == '11':
-            card_rank = 'Q'
-        elif card_rank == '10':
-            card_rank = 'J'
+        card_rank_string = str(card_rank_numerical)
+        
+        if card_rank_string == '14':
+            card_rank_string = 'A'
+        elif card_rank_string == '13':
+            card_rank_string = 'K'
+        elif card_rank_string == '12':
+            card_rank_string = 'Q'
+        elif card_rank_string == '11':
+            card_rank_string = 'J'
+
+        self.rank_string = card_rank_string
+
+        card_suit = ''
 
         if self.index % 4 == 0:
             card_suit = '\033[31m\u2665\033[0m'
@@ -39,19 +42,12 @@ class Card():
         else:
             card_suit = '\u2663'
 
-        card_name = card_rank + card_suit
+        self.suit = card_suit
 
-        return card_name
-
-
-class Table():
-    '''Creates a game object which represents the rules of the game.'''
-
-    def __init__(self):
-        self.big_blind = None
-        self.small_blind = None
-        self.ante = None
-
+    def __repr__(self):
+        '''Converts the unique card index into a name string. Note that the ace has the highest rank and the
+        ranks of all other cards ahs been transposed by -1, this is to make evaluation of hands easier.'''
+        return self.rank_string + self.suit
 
 class Player():
     '''Each instance represents a player in the game.'''
@@ -61,9 +57,24 @@ class Player():
         self.name = name
         self.stack = None
         self.order = None
-        self.hand = None
+        self.pocket_cards = None
+        self.score = 0
+        self.folded = None
 
         Player.player_list.append(name)
 
     def __repr__(self):
         return self.name
+
+class Table():
+    '''Creates a game object which represents the rules of the game.'''
+
+    def __init__(self):
+        self.num_players = None
+        self.big_blind = None
+        self.small_blind = None
+        self.ante = None
+        self.hand_number = None
+        self.street = None
+        self.board = None
+        self.num_folded = 0

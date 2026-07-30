@@ -2,7 +2,9 @@ from characters import character_list
 from models import Player, Table
 import random
 
-def test_setup():
+def testing_setup():
+    '''Allows you to set variable which are normally set through user input in the game_setup() function.
+    Used for quick testing.'''
     user_name = 'user'
     num_players = 8
     starting_stack = 1000000
@@ -20,12 +22,15 @@ def test_setup():
     user_table_order = random.randint(1, num_players)
     player_list.insert(user_table_order - 1, user)
 
-    for player in player_list:
+    for index, player in enumerate(player_list):
         player.stack = starting_stack
+        player.order = index + 1
 
     table = Table()
+    table.num_players = num_players
     table.big_blind = big_blind
     table.small_blind = small_blind
     table.ante = ante
+    table.hand_number = 0
 
     return table, player_list
