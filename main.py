@@ -1,8 +1,51 @@
-from characters import character_list
-from helpers import is_sequence
+from characters import character_list, hand_ranking_scores
+from hand_eval import evaluate_hand_ranking, evaluate_pre_flop, solve_draws
 from models import Card, Player, Table
 import random
 from testing import testing_setup
+
+def bet(table, player, value):
+    '''Handles the adding of money to the pot when a player bets.'''
+    if player.stack >= value:
+        print(f'{player.name} has bet {value}.')
+        table.pot += value
+        player.stack -= value
+    else:
+        print(f'{player.name} has bet {player.stack}.')
+        table.pot += player.stack
+        player.stack = 0
+
+def cpu_turn(table, player, value):
+    '''Makes a choice of betting or folding for the cpu. Uses different algorithms depending on pre-flop or post-flop.'''
+    if table.street == 'pre-flop':
+        evaluate_pre_flop(table, player)
+
+        if player.score >= 5:
+            bet(table, player, value)
+        else:
+            fold(table, player)
+    else:
+        player.score = 0
+        hand_ranking = evaluate_hand_ranking(table, player)
+
+        for element in hand_ranking:
+            player.score += hand_ranking_scores.get(element)
+
+        if table.street == 'flop':
+            if player.score >= 20:
+                bet(table, player, value)
+            else:
+                fold(table, player)
+        elif table.street == 'turn':
+            if player.score >= 30:
+                bet(table, player, value)
+            else:
+                fold(table, player)
+        elif table.street == 'river':
+            if player.score >= 20:
+                bet(table, player, value)
+            else:
+                fold(table, player)
 
 def draw_cards(num_to_draw):
     '''Draws a specified number of random cards. If a card is drawn which is already in play it
@@ -20,175 +63,29 @@ def draw_cards(num_to_draw):
 
     return cards
 
-def evaluate_pre_flop(table, player):
-    '''Simple hand evaluation algorithm for pre-flop.'''
-    cards = player.pocket_cards
+def fold(table, player):
+    '''Handles when a player folds out of a hand.'''
+    print(f'{player.name} has folded.')
+    player.folded = True
+    table.num_folded += 1
 
-    # Gives the player's cards a score for how high their rank is.
-    for card in cards:
-        if card.rank_string == 'A':
-            player.score += 8
-        elif card.rank_string in ['K', 'Q', 'J']:
-            player.score += 6
-        elif card.rank_string in ['10', '9', '8']:
-            player.score += 4
-        elif card.rank_string in ['7', '6', '5']:
-            player.score += 2
+def user_turn(table, player, value):
+    '''Gives the user a choice between betting and folding. Carries the action out.'''
+    print(f'Your pocket cards are: {player.pocket_cards}')
+    print(f'The pot is {table.pot}.')
+    player_action = input('Type \'bet\' or \'fold\' to take that action: ').lower()
+
+    validate_player_action = False
+    while validate_player_action == False:
+        if player_action == 'bet' or player_action == 'fold':
+            validate_player_action = True
         else:
-            player.score += 0
+            player_action = input('Incorrect input. Please try again.').lower()
 
-    # Gives the cards an extra score if they are suited.
-    if cards[0].suit == cards[1].suit:
-        player.score += 4
-
-    # Gives the cards an extra score for how far away their rank is from each other. Need a special case here
-    # because the ace can act as a high or low cards for straight purposes.
-    difference_between_ranks_ace_high = abs(cards[0].rank_numerical - cards[1].rank_numerical)
-    difference_between_ranks_ace_low = abs(((cards[0].rank_numerical - 1) % 13) - ((cards[1].rank_numerical - 1) % 13))
-    difference_between_ranks = min(difference_between_ranks_ace_high, difference_between_ranks_ace_low)
-
-    if difference_between_ranks == 0:
-        player.score += 20
-    elif difference_between_ranks == 1:
-        player.score += 8
-    elif difference_between_ranks == 2:
-        player.score += 4
-    elif difference_between_ranks == 3:
-        player.score += 2
-    elif difference_between_ranks == 4:
-        player.score += 1
-
-    # Lowers the score for each other active player in the hand.
-    player.score -= 2 * (table.num_players - table.num_folded - 1)
-
-def evaluate_post_flop(table, player):
-    table_cards_rank = []
-    for card in table.board:
-        table_cards_rank.append(card.rank_numerical)
-
-    player_cards_rank = [player.board[0].rank_numerical, player.board[1].rank_numerical]
-
-    hand_scores = {
-        'high card': 10,
-        'pair': 20,
-        'two pair': 30,
-        'three of a kind': 40,
-        'straight': 50,
-        'flush': 60,
-        'full house': 70,
-        'four of a kind': 80,
-        'straight flush': 90,
-        'royal flush': 100
-    }
-
-    # Adds score if the player has the high card in their pocket cards.
-    if max(player_cards_rank) >= max(table_cards_rank):
-        player.score += hand_scores['high card']
-
-    # Adds score if the player has pair, two-pair, three of a kind, four of a kind, or full house with the board.
-    if player_cards_rank[0] == player_cards_rank[1]:
-        if table_cards_rank.count(player_cards_rank[0]) == 2:
-            player.score += hand_scores['four of a kind']
-        elif table_cards_rank[0] == table_cards_rank[1] and table_cards_rank[1] == table_cards_rank[2]:
-            player.score += hand_scores['full house']
-        elif table_cards_rank.count(player_cards_rank[0]) == 1:
-            player.score += hand_scores['three of a kind']
+    if player_action == 'bet':
+        bet(table, player, value)
     else:
-        if ((table_cards_rank.count(player_cards_rank[0]) == 1 and table_cards_rank.count(player_cards_rank[1]) == 2)
-            or (table_cards_rank.count(player_cards_rank[0]) == 2 and table_cards_rank.count(player_cards_rank[1]) == 1)):
-            player.score += hand_scores['full house']
-        elif table_cards_rank.count(player_cards_rank[0]) == 2 or table_cards_rank.count(player_cards_rank[1]) == 2:
-            player.score += hand_scores['three of a kind']
-        elif table_cards_rank.count(player_cards_rank[0]) == 1 and table_cards_rank.count(player_cards_rank[1]) == 1:
-            player.score += hand_scores['two pair']
-        elif table_cards_rank.count(player_cards_rank[0]) == 1 or table_cards_rank.count(player_cards_rank[1]) == 1:
-            player.score += hand_scores['pair']
-
-    # Adds a score if the player has or is close to a straight or flush.
-    def find_straight():
-        '''Returns if the player has a straight or could get one.'''
-        ranks_in_play = []
-        for card in table.board:
-            ranks_in_play.append(card.rank_numerical)
-        for card in player.pocket_cards:
-            ranks_in_play.append(card.rank_numerical)
-
-        if table.street == 'turn':
-            if is_sequence(ranks_in_play, 5):
-                return 'straight'
-        elif table.street == 'river':
-            if is_sequence(ranks_in_play, 5):
-                return 'straight'
-            elif is_sequence(ranks_in_play, 4):
-                return '1 off straight'
-        elif table.street == 'flop':
-            if is_sequence(ranks_in_play, 5):
-                return 'straight'
-            elif is_sequence(ranks_in_play, 4):
-                return '1 off straight'
-            elif is_sequence(ranks_in_play, 3):
-                return '2 off straight'
-
-    def find_flush():
-        '''Returns if the player has a flush or could get one.'''
-        suits_in_play = []
-        for card in table.board:
-            suits_in_play.append(card.suit)
-        for card in player.pocket_cards:
-            suits_in_play.append(card.suit)
-
-        suits_count = {}
-        for suit in suits_in_play:
-            if suit in suits_count:
-                suits_count[f'{suit}'] += 1
-            else:
-                suits_count[f'{suit}'] = 1
-
-        most_single_suit = max(suits_count.values())
-
-        if most_single_suit == 5:
-            return 'flush'
-        elif most_single_suit == 4:
-            return '1 off flush'
-        elif most_single_suit == 3:
-            return '2 off flush'
-
-    if table.street == 'river':
-        if find_straight() == 'straight' and find_flush() == 'flush':
-            player.score += hand_scores['straight flush']
-        elif find_flush() == 'flush':
-            player.score += hand_scores['flush']
-        elif find_straight() == 'straight':
-            player.score += hand_scores['straight']
-
-    if table.street == 'turn':
-        if find_flush() == 'flush':
-            player.score += hand_scores['flush']
-        elif find_straight() == 'straight':
-            player.score += hand_scores['straight']
-        elif find_flush() == '1 off flush':
-            player.score += int(0.25 * hand_scores['flush'])
-        elif find_straight() == '1 off straight':
-            player.score += int((2 / 13) * hand_scores['straight'])
-
-    if table.street == 'flop':
-        if find_flush() == 'flush':
-            player.score += hand_scores['flush']
-        elif find_straight() == 'straight':
-            player.score += hand_scores['straight']
-        elif find_flush() == '1 off flush':
-            player.score += int(0.25 * hand_scores['flush'])
-        elif find_straight() == '1 off straight':
-            player.score += int((2 / 13) * hand_scores['straight'])
-        elif find_flush() == '2 off flush':
-            player.score += int(0.0625 * hand_scores['flush'])
-        elif find_straight() == '2 off straight':
-            player.score += int((4 / 169) * hand_scores['straight'])
-
-def hand():
-    '''Draws each player in the game a 2 card hand.'''
-    for player in player_list:
-        player.pocket_cards = draw_cards(2)
+        fold(table, player)
 
 def game_setup():
     '''Handles the setup for a new game. Gives the user options on the starting state of the game.'''
@@ -219,6 +116,7 @@ def game_setup():
 
     # Create a list of all player objects in the new game and assigns them a random order at the table.
     user = Player(user_name)
+    user.is_user = True
     player_list = []
     player_choice = random.sample(character_list, k=(num_players - 1))
 
@@ -286,13 +184,99 @@ def game_setup():
     table.small_blind = small_blind
     table.ante = ante
 
-    return table, player_list
+    return table, player_list, user
 
-table, player_list = testing_setup()
-print(table.big_blind, table.small_blind, table.ante)
+def hand(table, player_list):
+    '''Plays out a single hand.'''
+    ## Pre-flop.
+    table.street = 'pre-flop'
 
-hand()
+    for player in player_list:
+        player.pocket_cards = draw_cards(2)
 
-for player in player_list:
-    evaluate_pre_flop(table, player)
-    print(player.name, player.pocket_cards, player.score)
+        # Automatically takes the blind money and adds it to the pot.
+        if player.order == 1:
+            if player.stack >= table.small_blind:
+                print(f'{player.name} is the small blind and has bet {table.small_blind}.')
+                table.pot += table.small_blind
+                player.stack -= table.small_blind
+            else:
+                print(f'{player.name} is the small blind and has bet {player.stack}.')
+                table.pot += player.stack
+                player.stack = 0
+        elif player.order == 2:
+            if player.stack >= table.big_blind:
+                print(f'{player.name} is the big blind and has bet {table.big_blind}.')
+                table.pot += table.big_blind
+                player.stack -= table.big_blind
+            else:
+                print(f'{player.name} is the big blind and has bet {player.stack}.')
+                table.pot += player.stack
+                player.stack = 0
+
+        # If the player is not one of the blinds they get to decide to bet or fold.
+        elif player.is_user == True:
+            user_turn(table, player, table.big_blind)
+
+        # Runs the pre-flop hand evaluation algorithm to decide the actions of the CPU players.
+        else:
+            cpu_turn(table, player, table.big_blind)
+
+    # Gives the small blind player the choice to bet or fold after everyone else has gone.
+    for player in player_list:
+        if player.order == 1:
+            if player.is_user == True:
+                user_turn(table, player, table.small_blind)
+            else:
+                cpu_turn(table, player, table.small_blind)
+
+    ## Post-flop.
+    post_flop_streets = ['flop', 'turn', 'river']
+
+    i = 0
+    while i <= 2:
+        table.street = post_flop_streets[i]
+        if table.street == 'flop':
+            table.board = draw_cards(3)
+        else:
+            table.board += draw_cards(1)
+
+        for player in player_list:
+            if player.folded == False:
+                if player.is_user == True:
+                    print(f'The board is: {table.board}')
+                    user_turn(table, player, table.big_blind)
+                else:
+                    cpu_turn(table, player, table.big_blind)
+            else:
+                continue
+
+        i += 1
+
+    ## Find hand winner.
+    # For now only hand rankings matter and not the rank of the hand, so all flushes or straights are considered equal for example.
+    player_hand_scores = []
+    for player in player_list:
+        if player.folded == False:
+            player_hand_ranking = evaluate_hand_ranking(table, player)
+            player.score = hand_ranking_scores.get(player_hand_ranking[0])
+            player_hand_scores.append(player.score)
+        else:
+            player.score = 0
+
+    winning_score = max(player_hand_scores)
+    winners = []
+
+    for player in player_list:
+        if player.score == winning_score:
+            winners.append(player)
+
+    winner_chips = table.pot // len(winners)
+    table.pot = 0
+
+    for winner in winners:
+        winner.stack += winner_chips
+
+table, player_list, user = testing_setup()
+print(table.small_blind, table.big_blind)
+hand(table, player_list)

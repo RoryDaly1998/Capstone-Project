@@ -13,6 +13,7 @@ def testing_setup():
     ante = 0
 
     user = Player(user_name)
+    user.is_user = True
     player_list = []
     player_choice = random.sample(character_list, k=(num_players - 1))
 
@@ -33,4 +34,4 @@ def testing_setup():
     table.ante = ante
     table.hand_number = 0
 
-    return table, player_list
+    return table, player_list, user

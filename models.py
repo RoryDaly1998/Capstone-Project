@@ -55,11 +55,12 @@ class Player():
 
     def __init__(self, name):
         self.name = name
+        self.is_user = False
         self.stack = None
         self.order = None
         self.pocket_cards = None
         self.score = 0
-        self.folded = None
+        self.folded = False
 
         Player.player_list.append(name)
 
@@ -78,3 +79,4 @@ class Table():
         self.street = None
         self.board = None
         self.num_folded = 0
+        self.pot = 0
