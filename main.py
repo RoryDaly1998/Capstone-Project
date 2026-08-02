@@ -1,5 +1,4 @@
-from characters import character_list, hand_ranking_scores
-from hand_eval import evaluate_hand_ranking, evaluate_pre_flop, solve_draws
+from hand_eval import evaluate_hand_ranking, evaluate_pre_flop
 from models import Card, Player, Table
 import random
 from testing import testing_setup
@@ -15,9 +14,13 @@ def bet(table, player, value):
         table.pot += player.stack
         player.stack = 0
 
-def cpu_turn(table, player, value):
+def cpu_turn(table, player_list, player, value):
     '''Makes a choice of betting or folding for the cpu. Uses different algorithms depending on pre-flop or post-flop.'''
-    if table.street == 'pre-flop':
+    is_winner = has_everyone_else_folded(table, player_list)
+
+    if is_winner == True:
+        print(f'{player.name} has won {table.pot} after everyone else folded.')
+    elif table.street == 'pre-flop':
         evaluate_pre_flop(table, player)
 
         if player.score >= 5:
@@ -32,17 +35,17 @@ def cpu_turn(table, player, value):
             player.score += hand_ranking_scores.get(element)
 
         if table.street == 'flop':
-            if player.score >= 20:
+            if player.score >= 0:
                 bet(table, player, value)
             else:
                 fold(table, player)
         elif table.street == 'turn':
-            if player.score >= 30:
+            if player.score >= 0:
                 bet(table, player, value)
             else:
                 fold(table, player)
         elif table.street == 'river':
-            if player.score >= 20:
+            if player.score >= 0:
                 bet(table, player, value)
             else:
                 fold(table, player)
@@ -69,23 +72,83 @@ def fold(table, player):
     player.folded = True
     table.num_folded += 1
 
-def user_turn(table, player, value):
-    '''Gives the user a choice between betting and folding. Carries the action out.'''
-    print(f'Your pocket cards are: {player.pocket_cards}')
-    print(f'The pot is {table.pot}.')
-    player_action = input('Type \'bet\' or \'fold\' to take that action: ').lower()
+def game_over(table, player_list):
+    print('The game has ended. Thanks for playing.')
 
-    validate_player_action = False
-    while validate_player_action == False:
-        if player_action == 'bet' or player_action == 'fold':
-            validate_player_action = True
-        else:
-            player_action = input('Incorrect input. Please try again.').lower()
-
-    if player_action == 'bet':
-        bet(table, player, value)
+    if table.hand_number == 1:
+        print(f'You played {table.hand_number} hand.')
     else:
-        fold(table, player)
+        print(f'You played {table.hand_number} hands.')
+
+    for player in player_list:
+        if player.is_user == True:
+            winnings = player.stack
+
+    winnings -= table.starting_stack
+
+    if winnings >= 0:
+        print(f'You made {winnings} profit. Well done.')
+    else:
+        print(f'You lost {winnings}. Unlucky, try again next time.')
+
+    # Creates a leaderboard to display.
+    print('The finals standings are:')
+
+    players_ordered_by_winnings = []
+
+    while len(player_list) > 0:
+        largest_stack_left = player_list[0]
+
+        for player in player_list:
+            if largest_stack_left.stack > player.stack:
+                largest_stack_left = player
+
+        players_ordered_by_winnings.append(largest_stack_left)
+
+    # Prints the leaderboard.
+    for i in range(len(players_ordered_by_winnings) + len(table.players_eliminated) - 1):
+        if i < len(players_ordered_by_winnings):
+            print(
+                f'{i + 1}. Name: {players_ordered_by_winnings[i].name} Winnings: {players_ordered_by_winnings[i].stack - table.starting_stack}'
+                )
+        else:
+            print(f'{i + 1}. Name: {table.players_eliminated[i].name} Winnings: {- table.starting_stack}.')
+
+def has_everyone_else_folded(table, player_list):
+    players_folded = 0
+
+    for player in player_list:
+        if player.folded == True:
+            players_folded += 1
+
+    if len(player_list) - players_folded == 1:
+        table.everyone_folded = True
+        return True
+    else:
+        return False
+
+def user_turn(table, player_list, player, value):
+    '''Gives the user a choice between betting and folding. Carries the action out.'''
+    is_winner = has_everyone_else_folded(table, player_list)
+    if is_winner:
+        print(f'Everyone else has folded, you win {table.pot}.')
+        return
+    else:
+        print(f'Your pocket cards are: {player.pocket_cards}')
+        print(f'The pot is {table.pot}.')
+        player_action = input('Type \'bet\' or \'fold\' to take that action: ').lower()
+
+        validate_player_action = False
+        while validate_player_action == False:
+            if player_action == 'bet' or player_action == 'fold':
+                validate_player_action = True
+            else:
+                player_action = input('Incorrect input. Please try again: ').lower()
+
+        if player_action == 'bet':
+            bet(table, player, value)
+        else:
+            fold(table, player)
 
 def game_setup():
     '''Handles the setup for a new game. Gives the user options on the starting state of the game.'''
@@ -184,15 +247,26 @@ def game_setup():
     table.small_blind = small_blind
     table.ante = ante
 
-    return table, player_list, user
+    return table, player_list
 
 def hand(table, player_list):
     '''Plays out a single hand.'''
+    table.hand_number += 1
+    print(f'This is hand {table.hand_number}.')
+
     ## Pre-flop.
     table.street = 'pre-flop'
 
     for player in player_list:
         player.pocket_cards = draw_cards(2)
+
+        # Takes the ante out of the players stack and adds it to the pot.
+        if player.stack >= table.ante:
+            table.pot += table.ante
+            player.stack -= table.ante
+        else:
+            table.pot += player.stack
+            player.stack = 0
 
         # Automatically takes the blind money and adds it to the pot.
         if player.order == 1:
@@ -216,19 +290,19 @@ def hand(table, player_list):
 
         # If the player is not one of the blinds they get to decide to bet or fold.
         elif player.is_user == True:
-            user_turn(table, player, table.big_blind)
+            user_turn(table, player_list, player, table.big_blind)
 
         # Runs the pre-flop hand evaluation algorithm to decide the actions of the CPU players.
         else:
-            cpu_turn(table, player, table.big_blind)
+            cpu_turn(table, player_list, player, table.big_blind)
 
     # Gives the small blind player the choice to bet or fold after everyone else has gone.
     for player in player_list:
         if player.order == 1:
             if player.is_user == True:
-                user_turn(table, player, table.small_blind)
+                user_turn(table, player_list, player, table.small_blind)
             else:
-                cpu_turn(table, player, table.small_blind)
+                cpu_turn(table, player_list, player, table.small_blind)
 
     ## Post-flop.
     post_flop_streets = ['flop', 'turn', 'river']
@@ -243,40 +317,119 @@ def hand(table, player_list):
 
         for player in player_list:
             if player.folded == False:
-                if player.is_user == True:
-                    print(f'The board is: {table.board}')
-                    user_turn(table, player, table.big_blind)
+                if table.everyone_folded == False:
+                    if player.is_user == True:
+                        print(f'The board is: {table.board}')
+                        user_turn(table, player_list, player, table.big_blind)
+                    else:
+                        cpu_turn(table, player_list, player, table.big_blind)
                 else:
-                    cpu_turn(table, player, table.big_blind)
-            else:
-                continue
+                    player.stack += table.pot
+                    table.pot = 0
 
         i += 1
 
     ## Find hand winner.
     # For now only hand rankings matter and not the rank of the hand, so all flushes or straights are considered equal for example.
-    player_hand_scores = []
-    for player in player_list:
-        if player.folded == False:
-            player_hand_ranking = evaluate_hand_ranking(table, player)
-            player.score = hand_ranking_scores.get(player_hand_ranking[0])
-            player_hand_scores.append(player.score)
-        else:
-            player.score = 0
+    if table.everyone_folded == False:
+        player_hand_scores = []
+        for player in player_list:
+            if player.folded == False:
+                player_hand_ranking = evaluate_hand_ranking(table, player)
+                player.score = hand_ranking_scores.get(player_hand_ranking[0])
+                player_hand_scores.append(player.score)
+            else:
+                player.score = 0
 
-    winning_score = max(player_hand_scores)
-    winners = []
+        winning_score = max(player_hand_scores)
+        winners = []
 
-    for player in player_list:
-        if player.score == winning_score:
-            winners.append(player)
+        for player in player_list:
+            if player.score == winning_score:
+                winners.append(player)
 
-    winner_chips = table.pot // len(winners)
-    table.pot = 0
+        winning_hand_ranking = evaluate_hand_ranking(table, winners[0])
 
-    for winner in winners:
-        winner.stack += winner_chips
+        winner_chips = table.pot // len(winners)
+        table.pot = 0
 
-table, player_list, user = testing_setup()
-print(table.small_blind, table.big_blind)
-hand(table, player_list)
+        for winner in winners:
+            print(f'{winner} has won {winner_chips} with a {winning_hand_ranking}.')
+            winner.stack += winner_chips
+
+def game():
+    '''Runs the poker game in the terminal. Resets necessary model attribute between hands.'''
+    # table, player_list = game_setup()
+
+    table, player_list = testing_setup()
+    exit_game = False
+
+    while exit_game == False:
+        print('The stacks for each player currently are:')
+        for player in player_list:
+            print(player.name, player.stack)
+
+        hand(table, player_list)
+
+        # Remove any players with no chips left from the game.
+        for player in player_list:
+            if player.stack == 0:
+                if player.is_user == True:
+                    print('You have no chips left and so have been eliminated.')
+                    game_over()
+                    return
+                else:
+                    print(f'{player} has been eliminated.')
+                    table.players_eliminated.append(player)
+                    table.num_players -= 1
+                    player_list.remove(player)
+                    del player
+
+        # Shift the order of play to the right and reset the players and table.
+        player_list = player_list[1: len(player_list)] + player_list[0: 1]
+        for player in player_list:
+            player.order = player_list.index(player) + 1
+            player.folded = False
+            player.pocket_cards = []
+
+        table.everyone_folded = False
+        table.num_folded = 0
+        table.board = []
+
+        Card.cards_in_play = []
+
+        # Asks the user if they want to keep playing.
+        user_input = input('Would you like to play another hand? (Y/N) ').lower()
+        valid_input = False
+
+        while valid_input == False:
+            if user_input == 'y' or user_input == 'n':
+                valid_input = True
+            else:
+                user_input = input('Invalid input. Please try again: (Y/N) ').lower()
+
+        if user_input == 'n':
+            game_over(table, player_list)
+            exit_game = True
+
+character_list = ['John', 'Anna', 'Phillip', 'Rachel', 'Terrence', 'Brenda', 'Will']
+
+hand_ranking_scores = {
+    'nothing': 0,
+    '2 off straight': int((4 / 169) * 50),
+    '2 off flush': int((1 / 16) * 60),
+    '1 off straight': int((1 / 13) * 50),
+    '1 off flush': int((1 / 4) * 60),
+    'high card': 10,
+    'pair': 20,
+    'two pair': 30,
+    'three of a kind': 40,
+    'straight': 50,
+    'flush': 60,
+    'full house': 70,
+    'four of a kind': 80,
+    'straight flush': 90,
+    'royal flush': 100
+}
+
+game()

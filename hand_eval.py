@@ -14,6 +14,9 @@ def find_straight(table, player):
     for card in player.pocket_cards:
         ranks_in_play.append(card.rank_numerical)
 
+    if 14 in ranks_in_play: # Adds the rank of one for an ace low card.
+        ranks_in_play.append(1)
+
     if table.street == 'turn':
         if check_straight_sequence(ranks_in_play, 5):
             return 'straight'
@@ -64,6 +67,31 @@ def find_flush(table, player):
         return '1 off flush'
     elif most_single_suit == 3:
         return '2 off flush'
+
+def find_multiple_of_a_rank(table, player):
+    card_ranks = []
+    three_of_a_kinds = 0
+    pairs = 0
+
+    for card in table.board + player.pocket_cards:
+        card_ranks.append(card.rank_numerical)
+
+    for card in card_ranks:
+        if card_ranks.count(card) == 4:
+            return 'four of a kind'
+        elif card_ranks.count(card) == 3:
+            three_of_a_kinds += 1
+        if card_ranks.count(card) == 2:
+            pairs += 1
+
+    if three_of_a_kinds > 0 and pairs > 0:
+        return 'full house'
+    elif three_of_a_kinds > 0:
+        return 'three of a kind'
+    elif pairs > 2:
+        return 'two pair'
+    elif pairs == 2: # One pair will return 2 since the algorithm sees it twice.
+        return 'pair'
 
 def evaluate_pre_flop(table, player):
     '''Simple hand evaluation algorithm for pre-flop.'''
@@ -120,16 +148,29 @@ def evaluate_hand_ranking(table, player):
     player_cards_rank = [player.pocket_cards[0].rank_numerical,
                          player.pocket_cards[1].rank_numerical]
 
-    # Adds score if the player has a flush, straight or is close to one.
+    # Returns the highest hand ranking the player has.
     if find_flush(table, player) == 'royal flush':
         hand_ranking.append('royal flush')
     elif find_flush(table, player) == 'straight flush':
         hand_ranking.append('straight flush')
+    elif find_multiple_of_a_rank == 'four of a kind':
+        hand_ranking.append('four of a kind')
+    elif find_multiple_of_a_rank == 'full house':
+        hand_ranking.append('full house')
     elif find_flush(table, player) == 'flush':
         hand_ranking.append('flush')
     elif find_straight(table, player) == 'straight':
         hand_ranking.append('straight')
     else:
+        if find_multiple_of_a_rank == 'three of a kind':
+            hand_ranking.append('three of a kind')
+        elif find_multiple_of_a_rank == 'two pair':
+            hand_ranking.append('two pair')
+        elif find_multiple_of_a_rank == 'pair':
+            hand_ranking.append('pair')
+        elif max(player_cards_rank) >= max(table_cards_rank):
+            hand_ranking.append('high card')
+
         if find_flush(table, player) == '1 off flush' and (table.street == 'turn' or table.street == 'flop'):
             hand_ranking.append('1 off flush')
         elif find_straight(table, player) == '1 off straight' and (table.street == 'turn' or table.street == 'flop'):
@@ -138,34 +179,6 @@ def evaluate_hand_ranking(table, player):
             hand_ranking.append('2 off flush')
         elif find_straight(table, player) == '2 off straight' and table.street == 'flop':
             hand_ranking.append('2 off straight')
-
-        # Adds score if the player has pair, two-pair, three of a kind, four of a kind, or full house with the board.
-        if player_cards_rank[0] == player_cards_rank[1]:
-            if table_cards_rank.count(player_cards_rank[0]) == 2:
-                hand_ranking.append('four of a kind')
-            elif table_cards_rank[0] == table_cards_rank[1] and table_cards_rank[1] == table_cards_rank[2]:
-                hand_ranking.append('full house')
-            elif table_cards_rank.count(player_cards_rank[0]) == 1:
-                hand_ranking.append('three of a kind')
-            elif len(table_cards_rank) > len(set(table_cards_rank)):
-                hand_ranking.append('two pair')
-            else:
-                hand_ranking.append('pair')
-        else:
-            if table_cards_rank.count(player_cards_rank[0]) == 3 or table_cards_rank.count(player_cards_rank[1]) == 3:
-                hand_ranking.append('four of a kind')
-            elif ((table_cards_rank.count(player_cards_rank[0]) == 1 and table_cards_rank.count(player_cards_rank[1]) == 2)
-                  or (table_cards_rank.count(player_cards_rank[0]) == 2 and table_cards_rank.count(player_cards_rank[1]) == 1)):
-                hand_ranking.append('full house')
-            elif table_cards_rank.count(player_cards_rank[0]) == 2 or table_cards_rank.count(player_cards_rank[1]) == 2:
-                hand_ranking.append('three of a kind')
-            elif table_cards_rank.count(player_cards_rank[0]) == 1 and table_cards_rank.count(player_cards_rank[1]) == 1:
-                hand_ranking.append('two pair')
-            elif table_cards_rank.count(player_cards_rank[0]) == 1 or table_cards_rank.count(player_cards_rank[1]) == 1:
-                hand_ranking.append('pair')
-            # Adds a score if the player has the high card in their hand.
-            elif max(player_cards_rank) >= max(table_cards_rank):
-                hand_ranking.append('high card')
 
     if len(hand_ranking) == 0:
         hand_ranking.append('nothing')

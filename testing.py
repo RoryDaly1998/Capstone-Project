@@ -1,4 +1,3 @@
-from characters import character_list
 from models import Player, Table
 import random
 
@@ -10,7 +9,7 @@ def testing_setup():
     starting_stack = 1000000
     big_blind = 1000
     small_blind = big_blind // 2
-    ante = 0
+    ante = 100
 
     user = Player(user_name)
     user.is_user = True
@@ -29,9 +28,11 @@ def testing_setup():
 
     table = Table()
     table.num_players = num_players
+    table.starting_stack = starting_stack
     table.big_blind = big_blind
     table.small_blind = small_blind
     table.ante = ante
-    table.hand_number = 0
 
-    return table, player_list, user
+    return table, player_list
+
+character_list = ['John', 'Anna', 'Phillip', 'Rachel', 'Terrence', 'Brenda', 'Will']

@@ -56,9 +56,9 @@ class Player():
     def __init__(self, name):
         self.name = name
         self.is_user = False
-        self.stack = None
-        self.order = None
-        self.pocket_cards = None
+        self.stack = 0
+        self.order = 0
+        self.pocket_cards = []
         self.score = 0
         self.folded = False
 
@@ -71,12 +71,15 @@ class Table():
     '''Creates a game object which represents the rules of the game.'''
 
     def __init__(self):
-        self.num_players = None
-        self.big_blind = None
-        self.small_blind = None
-        self.ante = None
-        self.hand_number = None
-        self.street = None
-        self.board = None
+        self.num_players = 0
+        self.starting_stack = 0
+        self.players_eliminated = []
+        self.big_blind = 0
+        self.small_blind = 0
+        self.ante = 0
+        self.hand_number = 0
+        self.everyone_folded = False
+        self.street = ''
+        self.board = []
         self.num_folded = 0
         self.pot = 0
