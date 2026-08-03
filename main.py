@@ -364,9 +364,9 @@ def hand(table, player_list):
 
 def game():
     '''Runs the poker game in the terminal. Resets necessary model attribute between hands.'''
-    # table, player_list = game_setup()
+    table, player_list = game_setup()
+    #table, player_list = testing_setup()
 
-    table, player_list = testing_setup()
     exit_game = False
 
     while exit_game == False:
