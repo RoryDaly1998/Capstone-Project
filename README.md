@@ -1,9 +1,5 @@
-Run the program in the terminal and play the game with terminal prompts.
-
-The game is an attempted simulation of poker.
+Run the program in the terminal and play the game with terminal prompts. If you want a quick setup, at the top line of game() comment out table, player_list = game_setup() and uncomment the line beneath it table, player_list = testing_setup(). 
 
 Some simplifications that have been made:
 - There is no raising, bet sizing or all-in.
 - The cpu betting decisions are based on hard-coded values.
-
-Unfortunately in it's current state the game does not work. It needs some more debugging to fix the CPU betting behavious and hand evaluation.
