@@ -81,7 +81,7 @@ def find_multiple_of_a_rank(table, player):
             return 'four of a kind'
         elif card_ranks.count(card) == 3:
             three_of_a_kinds += 1
-        if card_ranks.count(card) == 2:
+        elif card_ranks.count(card) == 2:
             pairs += 1
 
     if three_of_a_kinds > 0 and pairs > 0:
@@ -153,20 +153,20 @@ def evaluate_hand_ranking(table, player):
         hand_ranking.append('royal flush')
     elif find_flush(table, player) == 'straight flush':
         hand_ranking.append('straight flush')
-    elif find_multiple_of_a_rank == 'four of a kind':
+    elif find_multiple_of_a_rank(table, player) == 'four of a kind':
         hand_ranking.append('four of a kind')
-    elif find_multiple_of_a_rank == 'full house':
+    elif find_multiple_of_a_rank(table, player) == 'full house':
         hand_ranking.append('full house')
     elif find_flush(table, player) == 'flush':
         hand_ranking.append('flush')
     elif find_straight(table, player) == 'straight':
         hand_ranking.append('straight')
     else:
-        if find_multiple_of_a_rank == 'three of a kind':
+        if find_multiple_of_a_rank(table, player) == 'three of a kind':
             hand_ranking.append('three of a kind')
-        elif find_multiple_of_a_rank == 'two pair':
+        elif find_multiple_of_a_rank(table, player) == 'two pair':
             hand_ranking.append('two pair')
-        elif find_multiple_of_a_rank == 'pair':
+        elif find_multiple_of_a_rank(table, player) == 'pair':
             hand_ranking.append('pair')
         elif max(player_cards_rank) >= max(table_cards_rank):
             hand_ranking.append('high card')

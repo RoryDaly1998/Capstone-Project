@@ -134,7 +134,7 @@ def user_turn(table, player_list, player, value):
         print(f'Everyone else has folded, you win {table.pot}.')
         return
     else:
-        print(f'Your pocket cards are: {player.pocket_cards}')
+        print(f'\nYour pocket cards are: {player.pocket_cards}')
         print(f'The pot is {table.pot}.')
         player_action = input('Type \'bet\' or \'fold\' to take that action: ').lower()
 
@@ -252,10 +252,11 @@ def game_setup():
 def hand(table, player_list):
     '''Plays out a single hand.'''
     table.hand_number += 1
-    print(f'This is hand {table.hand_number}.')
+    print(f'\nThis is hand {table.hand_number}.')
 
     ## Pre-flop.
     table.street = 'pre-flop'
+    print('\n' + table.street.capitalize() + ':\n')
 
     for player in player_list:
         player.pocket_cards = draw_cards(2)
@@ -310,6 +311,10 @@ def hand(table, player_list):
     i = 0
     while i <= 2:
         table.street = post_flop_streets[i]
+
+        if table.everyone_folded == False:
+            print('\n' + table.street.capitalize() + ':\n')
+            
         if table.street == 'flop':
             table.board = draw_cards(3)
         else:
@@ -365,7 +370,7 @@ def game():
     exit_game = False
 
     while exit_game == False:
-        print('The stacks for each player currently are:')
+        print('\nThe stacks for each player currently are:')
         for player in player_list:
             print(player.name, player.stack)
 
